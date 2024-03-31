@@ -37,22 +37,22 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     device = devices.device
-    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model, device)
-    prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model, device)
-    prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
+    # prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model, device)
+    prompt_embeds, pooled_prompt_embeds = _get_text_embeddings( prompt, model, device)
+    # prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
     text_encoder_projection_dim = model.text_encoder_2.config.projection_dim
     add_time_ids = model._get_add_time_ids((1024, 1024), (0, 0), (1024, 1024), torch.float16,
                                            text_encoder_projection_dim).to(device)
-    added_cond_kwargs = {"text_embeds": pooled_prompt_embeds2, "time_ids": add_time_ids}
+    added_cond_kwargs = {"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids}
     return added_cond_kwargs, prompt_embeds
 
 
 def _encode_text_sdxl_with_negative(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     added_cond_kwargs, prompt_embeds = _encode_text_sdxl(model, prompt)
-    added_cond_kwargs_uncond, prompt_embeds_uncond = _encode_text_sdxl(model, "")
-    prompt_embeds = torch.cat((prompt_embeds_uncond, prompt_embeds, ))
-    added_cond_kwargs = {"text_embeds": torch.cat((added_cond_kwargs_uncond["text_embeds"], added_cond_kwargs["text_embeds"])),
-                         "time_ids": torch.cat((added_cond_kwargs_uncond["time_ids"], added_cond_kwargs["time_ids"])),}
+    # added_cond_kwargs_uncond, prompt_embeds_uncond = _encode_text_sdxl(model, "")
+    # prompt_embeds = torch.cat((prompt_embeds_uncond, prompt_embeds, ))
+    added_cond_kwargs = {"text_embeds": prompt_embeds,
+                         "time_ids": added_cond_kwargs["time_ids"]}
     return added_cond_kwargs, prompt_embeds
 
 
