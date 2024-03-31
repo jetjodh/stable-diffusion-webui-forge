@@ -23,13 +23,11 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
     # text_input_ids = torch.tensor(text_inputs).unsqueeze(0)  # Adjusted line
 
     with torch.no_grad():
-        prompt_embeds = model.forge_objects.clip.encode_from_tokens(
+        pooled_prompt_embeds, prompt_embeds = model.forge_objects.clip.encode_from_tokens(
             text_inputs,
             return_pooled=True
         )
 
-    pooled_prompt_embeds = prompt_embeds[0]
-    prompt_embeds = prompt_embeds.hidden_states[-2]
     if prompt == '':
         negative_prompt_embeds = torch.zeros_like(prompt_embeds)
         negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds)
