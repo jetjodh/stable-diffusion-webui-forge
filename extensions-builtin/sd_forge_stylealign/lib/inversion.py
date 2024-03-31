@@ -37,7 +37,7 @@ def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     device = model._execution_device
-    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.sd_model.cond_stage_model.tokenizer, model.text_encoder, device)
+    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.cond_stage_model.tokenizer, model.text_encoder, device)
     prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model.tokenizer_2, model.text_encoder_2, device)
     prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
     text_encoder_projection_dim = model.text_encoder_2.config.projection_dim
@@ -57,10 +57,10 @@ def _encode_text_sdxl_with_negative(model: StableDiffusionProcessingTxt2Img, pro
 
 
 def _encode_image(model: StableDiffusionProcessingTxt2Img, image: np.ndarray) -> T:
-    model.sd_model.first_stage_model.to(dtype=torch.float32)
+    model.first_stage_model.to(dtype=torch.float32)
     image = torch.from_numpy(image).float() / 255.
     image = (image * 2 - 1).permute(2, 0, 1).unsqueeze(0)
-    latent = model.get_first_stage_encoding(model.sd_model.encode_first_stage(image))
+    latent = model.get_first_stage_encoding(model.encode_first_stage(image))
     model.first_stage_model.to(dtype=torch.float16)
     return latent
 
@@ -78,7 +78,7 @@ def _next_step(model: StableDiffusionProcessingTxt2Img, model_output: T, timeste
 
 def _get_noise_pred(model: StableDiffusionProcessingTxt2Img, latent: T, t: T, context: T, guidance_scale: float, added_cond_kwargs: dict[str, T]):
     latents_input = torch.cat([latent] * 2)
-    noise_pred = model.sd_model.model.diffusion_model(latents_input, t, encoder_hidden_states=context, **added_cond_kwargs)["sample"]
+    noise_pred = model.model.diffusion_model(latents_input, t, encoder_hidden_states=context, **added_cond_kwargs)["sample"]
     noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
     noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
     return noise_pred
