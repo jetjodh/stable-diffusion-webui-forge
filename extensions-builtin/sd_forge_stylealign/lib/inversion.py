@@ -24,7 +24,7 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
 
     with torch.no_grad():
         prompt_embeds = model.forge_objects.clip.encode_from_tokens(
-            text_inputs.to(device),
+            text_inputs,
             return_pooled=True
         )
 
