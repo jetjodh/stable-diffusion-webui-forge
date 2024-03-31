@@ -12,13 +12,13 @@ TN = T | None
 InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str, T]], dict[str, T]]
 
 
-def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
-    # Tokenize text and get embeddings
-    text_inputs = tokenizer(prompt, padding='max_length', max_length=tokenizer.model_max_length, truncation=True, return_tensors='pt')
-    text_input_ids = text_inputs.input_ids
+def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, device):
+    # Use the tokenize method from GeneralConditioner
+    text_inputs = model.cond_stage_model.tokenize([prompt])
+    text_input_ids = torch.tensor(text_inputs[0]['input_ids']).unsqueeze(0)
 
     with torch.no_grad():
-        prompt_embeds = text_encoder(
+        prompt_embeds = model.text_encoder(
             text_input_ids.to(device),
             output_hidden_states=True,
         )
@@ -34,8 +34,8 @@ def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     device = devices.device
-    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.cond_stage_model.tokenizer, model.text_encoder, device)
-    prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model.tokenizer_2, model.text_encoder_2, device)
+    prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model, device)
+    prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model, device)
     prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
     text_encoder_projection_dim = model.text_encoder_2.config.projection_dim
     add_time_ids = model._get_add_time_ids((1024, 1024), (0, 0), (1024, 1024), torch.float16,
