@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 from modules.processing import StableDiffusionProcessingTxt2Img
-from modules.sd_samplers import create_sampler
-from modules.shared import opts
+from modules.devices import get_optimal_device
 import torch
 from tqdm import tqdm
 import numpy as np
@@ -34,7 +33,7 @@ def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
 
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
-    device = opts.device
+    device = get_optimal_device()
     prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.cond_stage_model.tokenizer, model.text_encoder, device)
     prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model.tokenizer_2, model.text_encoder_2, device)
     prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
@@ -113,7 +112,5 @@ def make_inversion_callback(zts, offset: int = 0) -> [T, InversionCallback]:
 @torch.no_grad()
 def ddim_inversion(model: StableDiffusionProcessingTxt2Img, x0: np.ndarray, prompt: str, num_inference_steps: int, guidance_scale,) -> T:
     z0 = _encode_image(model, x0)
-    # model.sampler = create_sampler(opts.sampler_name, model.sd_model)
-    # model.sampler.make_schedule(ddim_num_steps=num_inference_steps, ddim_eta=0.0, verbose=False)
     zs = _ddim_loop(model, z0, prompt, guidance_scale)
     return zs
