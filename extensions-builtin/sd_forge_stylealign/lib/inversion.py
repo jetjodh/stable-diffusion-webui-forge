@@ -63,7 +63,7 @@ def _encode_image(model: StableDiffusionProcessingTxt2Img, image: np.ndarray) ->
         image = image[:, :, :3]  # Keep only the first 3 channels
     image = torch.from_numpy(image).float() / 255.
     image = (image * 2 - 1).permute(2, 0, 1).unsqueeze(0)
-    latent = model.get_first_stage_encoding(model.sd_model.encode_first_stage(image))
+    latent = model.get_first_stage_encoding(model.encode_first_stage(image))
     model.first_stage_model.to(dtype=torch.float16)
     return latent
 
@@ -81,7 +81,7 @@ def _next_step(model: StableDiffusionProcessingTxt2Img, model_output: T, timeste
 
 def _get_noise_pred(model: StableDiffusionProcessingTxt2Img, latent: T, t: T, context: T, guidance_scale: float, added_cond_kwargs: dict[str, T]):
     latents_input = torch.cat([latent] * 2)
-    noise_pred = model.model.diffusion_model(latents_input, t, encoder_hidden_states=context, **added_cond_kwargs)["sample"]
+    noise_pred = model.diffusion_model(latents_input, t, encoder_hidden_states=context, **added_cond_kwargs)["sample"]
     noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
     noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
     return noise_pred
