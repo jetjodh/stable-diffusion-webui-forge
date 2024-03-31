@@ -55,7 +55,7 @@ def _encode_text_sdxl_with_negative(model: StableDiffusionProcessingTxt2Img, pro
 
 
 def _encode_image(model: StableDiffusionProcessingTxt2Img, image: np.ndarray) -> T:
-    model.first_stage_model.to(dtype=torch.float32)
+    model.first_stage_model.to(dtype=torch.float16)
     # Ensure the image is in RGB format
     if image.shape[2] == 4:  # Check if the image has 4 channels
         image = image[:, :, :3]  # Keep only the first 3 channels
