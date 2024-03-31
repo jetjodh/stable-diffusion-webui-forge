@@ -20,8 +20,8 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
     # Handling the tokenizer's output correctly
     # This is a placeholder line; you'll need to replace it with actual handling code
     # For example, if the tokenizer returns a list of token IDs directly:
-    text_input_ids = torch.tensor(text_inputs).unsqueeze(0)  # Adjusted line
-
+    text_input_ids = text_inputs["input_ids"].to(device)
+    
     with torch.no_grad():
         prompt_embeds = model.forge_objects.clip.encode_from_tokens(
             text_input_ids.to(device),
