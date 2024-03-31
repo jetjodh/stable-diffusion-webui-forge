@@ -4,7 +4,7 @@ import gradio as gr
 
 from modules import scripts
 import ldm_patched.ldm.modules.attention as attention
-from lib.inversion import ddim_inversion
+from .inversion import ddim_inversion
 
 def adain(content_features, style_features):
     # Calculate mean and std of content features
