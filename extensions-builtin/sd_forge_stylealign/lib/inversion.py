@@ -10,7 +10,7 @@ import numpy as np
 
 T = torch.Tensor
 TN = T | None
-InversionCallback = Callable[[StableDiffusionXLPipeline, int, T, dict[str, T]], dict[str, T]]
+InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str, T]], dict[str, T]]
 
 
 def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
@@ -103,7 +103,7 @@ def _ddim_loop(model: StableDiffusionProcessingTxt2Img, z0, prompt, guidance_sca
 
 def make_inversion_callback(zts, offset: int = 0) -> [T, InversionCallback]:
 
-    def callback_on_step_end(pipeline: StableDiffusionXLPipeline, i: int, t: T, callback_kwargs: dict[str, T]) -> dict[str, T]:
+    def callback_on_step_end(pipeline: StableDiffusionProcessingTxt2Img, i: int, t: T, callback_kwargs: dict[str, T]) -> dict[str, T]:
         latents = callback_kwargs['latents']
         latents[0] = zts[max(offset + 1, i + 1)].to(latents.device, latents.dtype)
         return {'latents': latents}
