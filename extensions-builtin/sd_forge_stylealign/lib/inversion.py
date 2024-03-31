@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 from modules.processing import StableDiffusionProcessingTxt2Img
-from modules.devices import get_optimal_device
+from modules import devices
 import torch
 from tqdm import tqdm
 import numpy as np
@@ -33,7 +33,7 @@ def _get_text_embeddings(prompt: str, tokenizer, text_encoder, device):
 
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
-    device = get_optimal_device()
+    device = devices.device
     prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model.cond_stage_model.tokenizer, model.text_encoder, device)
     prompt_embeds_2, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model.tokenizer_2, model.text_encoder_2, device)
     prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
@@ -54,14 +54,14 @@ def _encode_text_sdxl_with_negative(model: StableDiffusionProcessingTxt2Img, pro
 
 
 def _encode_image(model: StableDiffusionProcessingTxt2Img, image: np.ndarray) -> T:
-    model.first_stage_model.to(dtype=torch.float16)
+    model.first_stage_model.to(dtype=torch.dtype_vae)
     # Ensure the image is in RGB format
     if image.shape[2] == 4:  # Check if the image has 4 channels
         image = image[:, :, :3]  # Keep only the first 3 channels
     image = torch.from_numpy(image).float() / 255.
     image = (image * 2 - 1).permute(2, 0, 1).unsqueeze(0)
     latent = model.get_first_stage_encoding(model.encode_first_stage(image))
-    model.first_stage_model.to(dtype=torch.float16)
+    model.first_stage_model.to(dtype=devices.dtype_vae)
     return latent
 
 
