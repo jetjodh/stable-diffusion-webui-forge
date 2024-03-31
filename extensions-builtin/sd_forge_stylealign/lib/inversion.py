@@ -15,7 +15,7 @@ InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str
 def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, device):
     # Assuming the correct tokenizer is being used here
     # Adjust the following line to use the SDXL tokenizer correctly
-    text_inputs = model.cond_stage_model.tokenize([prompt])
+    text_inputs = model.cond_stage_model.tokenize([prompt])[0]
     
     # Handling the tokenizer's output correctly
     # This is a placeholder line; you'll need to replace it with actual handling code
