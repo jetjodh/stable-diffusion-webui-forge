@@ -113,7 +113,7 @@ def make_inversion_callback(zts, offset: int = 0) -> [T, InversionCallback]:
 @torch.no_grad()
 def ddim_inversion(model: StableDiffusionProcessingTxt2Img, x0: np.ndarray, prompt: str, num_inference_steps: int, guidance_scale,) -> T:
     z0 = _encode_image(model, x0)
-    model.sampler = create_sampler(opts.sampler_name, model.sd_model)
+    # model.sampler = create_sampler(opts.sampler_name, model.sd_model)
     model.sampler.make_schedule(ddim_num_steps=num_inference_steps, ddim_eta=0.0, verbose=False)
     zs = _ddim_loop(model, z0, prompt, guidance_scale)
     return zs
