@@ -15,7 +15,7 @@ InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str
 def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, device):
     # Assuming the correct tokenizer is being used here
     # Adjust the following line to use the SDXL tokenizer correctly
-    text_inputs = model.cond_stage_model.tokenize([prompt])[0]
+    text_inputs = model.forge_objects.clip.tokenize(prompt)
     
     # Handling the tokenizer's output correctly
     # This is a placeholder line; you'll need to replace it with actual handling code
@@ -23,7 +23,7 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
     # text_input_ids = torch.tensor(text_inputs).unsqueeze(0)  # Adjusted line
 
     with torch.no_grad():
-        prompt_embeds = model.cond_stage_model.encode_from_tokens(
+        prompt_embeds = model.forge_objects.clip.encode_from_tokens(
             text_inputs.to(device),
             return_pooled=True
         )
