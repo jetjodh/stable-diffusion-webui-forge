@@ -13,9 +13,11 @@ InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str
 
 
 def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, device):
-    # Use the tokenize method from GeneralConditioner
+    # Adjust the following line to use the SDXL tokenizer correctly
     text_inputs = model.cond_stage_model.tokenize([prompt])
-    text_input_ids = torch.tensor(text_inputs[0]['input_ids']).unsqueeze(0)
+    
+    # Handling the tokenizer's output correctly
+    text_input_ids = torch.tensor(text_inputs).unsqueeze(0)
 
     with torch.no_grad():
         prompt_embeds = model.text_encoder(
