@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import Callable
 from modules.processing import StableDiffusionProcessingTxt2Img
-from modules.sd_samplers import  
-from ldm_patched.modules.samplers import create_sampler
+from modules.sd_samplers import create_sampler
 from modules.shared import opts
 import torch
 from tqdm import tqdm
