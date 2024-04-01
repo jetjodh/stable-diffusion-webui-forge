@@ -15,19 +15,11 @@ InversionCallback = Callable[[StableDiffusionProcessingTxt2Img, int, T, dict[str
 def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, device):
     # Assuming the correct tokenizer is being used here
     # Adjust the following line to use the SDXL tokenizer correctly
-    text_inputs = model.forge_objects.clip.tokenize(prompt)
+    text_inputs = model.tokenizer.tokenize_with_weights(prompt)
     
     # Handling the tokenizer's output correctly
-    # This is a placeholder line; you'll need to replace it with actual handling code
-    # For example, if the tokenizer returns a list of token IDs directly:
-    # text_input_ids = torch.tensor(text_inputs).unsqueeze(0)  # Adjusted line
-
     with torch.no_grad():
-        pooled_prompt_embeds, prompt_embeds = model.forge_objects.clip.encode_from_tokens(
-            text_inputs,
-            return_pooled=True
-        )
-
+        prompt_embeds, pooled_prompt_embeds = model.encode_from_tokens(text_inputs, return_pooled=True)
     if prompt == '':
         negative_prompt_embeds = torch.zeros_like(prompt_embeds)
         negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds)
@@ -37,22 +29,20 @@ def _get_text_embeddings(prompt: str, model: StableDiffusionProcessingTxt2Img, d
 
 def _encode_text_sdxl(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     device = devices.device
-    # prompt_embeds, pooled_prompt_embeds, = _get_text_embeddings(prompt, model, device)
-    prompt_embeds, pooled_prompt_embeds = _get_text_embeddings( prompt, model, device)
-    # prompt_embeds = torch.cat((prompt_embeds, prompt_embeds_2), dim=-1)
+    prompt_embeds, pooled_prompt_embeds2, = _get_text_embeddings( prompt, model, device)
     text_encoder_projection_dim = model.text_encoder_2.config.projection_dim
     add_time_ids = model._get_add_time_ids((1024, 1024), (0, 0), (1024, 1024), torch.float16,
                                            text_encoder_projection_dim).to(device)
-    added_cond_kwargs = {"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids}
+    added_cond_kwargs = {"text_embeds": pooled_prompt_embeds2, "time_ids": add_time_ids}
     return added_cond_kwargs, prompt_embeds
 
 
 def _encode_text_sdxl_with_negative(model: StableDiffusionProcessingTxt2Img, prompt: str) -> tuple[dict[str, T], T]:
     added_cond_kwargs, prompt_embeds = _encode_text_sdxl(model, prompt)
-    # added_cond_kwargs_uncond, prompt_embeds_uncond = _encode_text_sdxl(model, "")
-    # prompt_embeds = torch.cat((prompt_embeds_uncond, prompt_embeds, ))
-    added_cond_kwargs = {"text_embeds": prompt_embeds,
-                         "time_ids": added_cond_kwargs["time_ids"]}
+    added_cond_kwargs_uncond, prompt_embeds_uncond = _encode_text_sdxl(model, "")
+    prompt_embeds = torch.cat((prompt_embeds_uncond, prompt_embeds, ))
+    added_cond_kwargs = {"text_embeds": torch.cat((added_cond_kwargs_uncond["text_embeds"], added_cond_kwargs["text_embeds"])),
+                         "time_ids": torch.cat((added_cond_kwargs_uncond["time_ids"], added_cond_kwargs["time_ids"])),}
     return added_cond_kwargs, prompt_embeds
 
 
