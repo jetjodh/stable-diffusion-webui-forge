@@ -3,11 +3,12 @@ from modules_forge.shared import add_supported_preprocessor
 from modules_forge.forge_util import numpy_to_pytorch
 from modules_forge.shared import add_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
-from lib_ipadapter.IPAdapterPlus import IPAdapterApply, InsightFaceLoader
+from lib_ipadapter.IPAdapterPlus import IPAdapterApply, IPAdapterApplyAdvanced, IPAdapterApplyStyleComposition, InsightFaceLoader
 from pathlib import Path
 
 
 opIPAdapterApply = IPAdapterApply().apply_ipadapter
+opIPAdapterApplyAdvanced = IPAdapterApplyAdvanced().apply_ipadapter
 opInsightFaceLoader = InsightFaceLoader().load_insight_face
 
 
@@ -144,7 +145,7 @@ class IPAdapterPatcher(ControlModelPatcher):
     def process_before_every_sampling(self, process, cond, mask, *args, **kwargs):
         unet = process.sd_model.forge_objects.unet
 
-        unet = opIPAdapterApply(
+        unet = opIPAdapterApplyAdvanced(
             ipadapter=self.ip_adapter,
             model=unet,
             weight=self.strength,
