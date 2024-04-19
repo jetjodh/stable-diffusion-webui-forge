@@ -670,6 +670,8 @@ class ControlNetUiGroup(object):
 
         unit = gr.State(self.default_unit)
         for comp in unit_args + (self.dummy_gradio_update_trigger,):
+            if comp is None:
+                continue  # Skip if the component is not initialized
             event_subscribers = []
             if hasattr(comp, "edit"):
                 event_subscribers.append(comp.edit)
@@ -685,7 +687,7 @@ class ControlNetUiGroup(object):
 
             for event_subscriber in event_subscribers:
                 event_subscriber(
-                    fn=UiControlNetUnit, inputs=list(unit_args), outputs=unit
+                    fn=UiControlNetUnit, inputs=[c for c in unit_args if c is not None], outputs=unit
                 )
 
         (
