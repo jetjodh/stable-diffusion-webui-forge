@@ -471,7 +471,6 @@ class ControlNetForForgeOfficial(scripts.Script):
             image_style=params.style_image,
             image_composition=params.composition_image,
             weight_composition=unit.weight_composition,
-            weight_type=unit.weight_type,
             combine_embeds=unit.combine_embeds,
             embeds_scaling=unit.embeds_scaling,
             layer_weights=unit.layer_weights,

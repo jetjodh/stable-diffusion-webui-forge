@@ -157,7 +157,6 @@ class IPAdapterPatcher(ControlModelPatcher):
             image_style=kwargs["image_style"],
             image_composition=kwargs["image_composition"],  # Assuming no specific image composition is passed; adjust as necessary
             weight_composition=kwargs["weight_composition"],  # Default or adjust as necessary
-            weight_type=kwargs["weight_type"],  # Default or adjust as necessary
             combine_embeds=kwargs["combine_embeds"],
             embeds_scaling=kwargs["embeds_scaling"],
             image_negative=kwargs["image_negative"],
