@@ -154,6 +154,13 @@ class IPAdapterPatcher(ControlModelPatcher):
             faceid_v2=self.faceid_v2,
             weight_v2=self.weight_v2,
             attn_mask=mask.squeeze(1) if mask is not None else None,
+            image_style=kwargs["image_style"],
+            image_composition=kwargs["image_composition"],  # Assuming no specific image composition is passed; adjust as necessary
+            weight_composition=kwargs["weight_composition"],  # Default or adjust as necessary
+            weight_type=kwargs["weight_type"],  # Default or adjust as necessary
+            combine_embeds=kwargs["combine_embeds"],
+            embeds_scaling=kwargs["embeds_scaling"],
+            image_negative=kwargs["image_negative"],
             **cond,
         )[0]
 

@@ -53,6 +53,9 @@ class ControlNetCachedParameters:
         self.control_cond_for_hr_fix = None
         self.control_mask = None
         self.control_mask_for_hr_fix = None
+        self.style_image = None
+        self.composition_image = None
+        self.negative_image = None
 
 
 class ControlNetForForgeOfficial(scripts.Script):
@@ -226,6 +229,14 @@ class ControlNetForForgeOfficial(scripts.Script):
 
             image = self.try_crop_image_with_a1111_mask(p, unit, image, resize_mode, preprocessor)
 
+            style_image = composition_image = negative_image = None
+            if unit["style_image"] is not None:
+                style_image = self.try_crop_image_with_a1111_mask(p, unit, unit["style_image"], resize_mode, preprocessor)
+            if unit["composition_image"] is not None:
+                composition_image = self.try_crop_image_with_a1111_mask(p, unit, unit["composition_image"], resize_mode, preprocessor)
+            if unit["negative_image"] is not None:
+                negative_image = self.try_crop_image_with_a1111_mask(p, unit, unit["negative_image"], resize_mode, preprocessor)
+
             if mask is not None:
                 mask = cv2.resize(HWC3(mask), (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
                 mask = self.try_crop_image_with_a1111_mask(p, unit, mask, resize_mode, preprocessor)
@@ -250,7 +261,7 @@ class ControlNetForForgeOfficial(scripts.Script):
                 new_image_list.append((input_image, input_mask))
             image_list = new_image_list
 
-        return image_list, resize_mode
+        return image_list, resize_mode, style_image, composition_image, negative_image
 
     @staticmethod
     def get_target_dimensions(p: StableDiffusionProcessing) -> Tuple[int, int, int, int]:
@@ -295,11 +306,14 @@ class ControlNetForForgeOfficial(scripts.Script):
 
         preprocessor = global_state.get_preprocessor(unit.module)
 
-        input_list, resize_mode = self.get_input_data(p, unit, preprocessor, h, w)
+        input_list, resize_mode, style_image, composition_image, negative_image = self.get_input_data(p, unit, preprocessor, h, w)
         preprocessor_outputs = []
         control_masks = []
         preprocessor_output_is_image = False
         preprocessor_output = None
+        params.style_image = style_image
+        params.composition_image = composition_image
+        params.negative_image = negative_image
 
         def optional_tqdm(iterable, use_tqdm):
             from tqdm import tqdm
@@ -454,6 +468,14 @@ class ControlNetForForgeOfficial(scripts.Script):
             params=params,
             cond_original=cond.clone() if isinstance(cond, torch.Tensor) else cond,
             mask_original=mask.clone() if isinstance(mask, torch.Tensor) else mask,
+            image_style=params.style_image,
+            image_composition=params.composition_image,
+            weight_composition=unit.weight_composition,
+            weight_type=unit.weight_type,
+            combine_embeds=unit.combine_embeds,
+            embeds_scaling=unit.embeds_scaling,
+            layer_weights=unit.layer_weights,
+            image_negative=params.negative_image,
         ))
 
         params.model.strength = float(unit.weight)
