@@ -179,6 +179,9 @@ class ControlNetUiGroup(object):
         self.enabled = None
         self.upload_tab = None
         self.image = None
+        self.style_image = None
+        self.composition_image = None
+        self.negative_image = None
         self.generated_image_group = None
         self.generated_image = None
         self.mask_image_group = None
@@ -215,6 +218,11 @@ class ControlNetUiGroup(object):
         self.threshold_b = None
         self.control_mode = None
         self.resize_mode = None
+        self.weight_style = None
+        self.weight_composition = None
+        self.weight_type = None
+        self.combine_embeds = None
+        self.embeds_scaling = None
         self.use_preview_as_input = None
         self.openpose_editor = None
         self.preset_panel = None
