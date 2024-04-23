@@ -69,6 +69,8 @@ def controlnet_api(_: gr.Blocks, app: FastAPI):
         weight_composition: float = Body(1, title="Weight Composition"),
         combine_embeds: str = Body("average", title="Combine Embeds"),
         embeds_scaling: str = Body("V only", title="Embeds Scaling"),
+        weight_type: str = Body("linear", title="Weight Type"),
+        layer_weights: str = Body("", title="Layer Weights"),
     ):
         processor_module = get_preprocessor(controlnet_module)
         if processor_module is None:
@@ -115,6 +117,8 @@ def controlnet_api(_: gr.Blocks, app: FastAPI):
                     weight_composition=weight_composition,
                     combine_embeds=combine_embeds,
                     embeds_scaling=embeds_scaling,
+                    weight_type=weight_type,
+                    layer_weights=layer_weights,
                     json_pose_callback=json_acceptor.accept,
                 )
             )

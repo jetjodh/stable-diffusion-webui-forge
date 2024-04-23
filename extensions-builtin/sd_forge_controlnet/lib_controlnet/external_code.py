@@ -233,7 +233,8 @@ class ControlNetUnit:
     combine_embeds: str = "average"
     # scaling factor for embeddings
     embeds_scaling: str = "V only"
-
+    layer_weights: str = ""
+    weight_type: str = "linear"
 
     # Following fields should only be used in the API.
     # ====== Start of API only fields ======

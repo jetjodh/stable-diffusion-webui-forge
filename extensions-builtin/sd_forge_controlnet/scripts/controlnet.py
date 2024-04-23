@@ -470,11 +470,12 @@ class ControlNetForForgeOfficial(scripts.Script):
             mask_original=mask.clone() if isinstance(mask, torch.Tensor) else mask,
             image_style=params.style_image,
             image_composition=params.composition_image,
+            image_negative=params.negative_image,
             weight_composition=unit.weight_composition,
             combine_embeds=unit.combine_embeds,
             embeds_scaling=unit.embeds_scaling,
             layer_weights=unit.layer_weights,
-            image_negative=params.negative_image,
+            weight_type=unit.weight_type,
         ))
 
         params.model.strength = float(unit.weight)
