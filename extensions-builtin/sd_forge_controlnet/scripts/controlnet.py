@@ -83,16 +83,16 @@ class ControlNetForForgeOfficial(scripts.Script):
                     if not shared.opts.data.get("controlnet_disable_photopea_edit", False)
                     else None
                 )
-                with gr.Row(elem_id=elem_id_tabname + "_accordions", elem_classes="accordions"):
-                    for i in range(max_models):
-                        with InputAccordion(
-                            value=False,
-                            label=f"ControlNet Unit {i}",
-                            elem_classes=["cnet-unit-enabled-accordion"],  # Class on accordion
-                        ):
-                            group = ControlNetUiGroup(is_img2img, default_unit, photopea)
-                            ui_groups.append(group)
-                            controls.append(group.render(f"ControlNet-{i}", elem_id_tabname))
+                # with gr.Row(elem_id=elem_id_tabname + "_accordions", elem_classes="accordions"):
+                #     for i in range(max_models):
+                #         with InputAccordion(
+                #             value=False,
+                #             label=f"ControlNet Unit {i}",
+                #             elem_classes=["cnet-unit-enabled-accordion"],  # Class on accordion
+                #         ):
+                #             group = ControlNetUiGroup(is_img2img, default_unit, photopea)
+                #             ui_groups.append(group)
+                #             controls.append(group.render(f"ControlNet-{i}", elem_id_tabname))
 
         for i, ui_group in enumerate(ui_groups):
             infotext.register_unit(i, ui_group)
@@ -627,6 +627,6 @@ def on_ui_settings():
 
 script_callbacks.on_ui_settings(on_ui_settings)
 script_callbacks.on_infotext_pasted(Infotext.on_infotext_pasted)
-script_callbacks.on_after_component(ControlNetUiGroup.on_after_component)
-script_callbacks.on_before_reload(ControlNetUiGroup.reset)
+# script_callbacks.on_after_component(ControlNetUiGroup.on_after_component)
+# script_callbacks.on_before_reload(ControlNetUiGroup.reset)
 script_callbacks.on_app_started(controlnet_api)
