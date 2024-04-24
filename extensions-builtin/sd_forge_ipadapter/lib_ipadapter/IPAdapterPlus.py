@@ -677,6 +677,27 @@ class IPAdapterApplyAdvanced:
     CATEGORY = "ipadapter"
 
     def apply_ipadapter(self, model, ipadapter, start_at, end_at, weight=1.0, weight_style=1.0, weight_composition=1.0, expand_style=False, weight_type="linear", combine_embeds="concat", weight_faceidv2=None, image=None, image_style=None, image_composition=None, image_negative=None, clip_vision=None, attn_mask=None, insightface=None, embeds_scaling='V only', layer_weights=None):
+        # print all args
+        print("model", model)
+        print("ipadapter", ipadapter)
+        print("start_at", start_at)
+        print("end_at", end_at)
+        print("weight", weight)
+        print("weight_style", weight_style)
+        print("weight_composition", weight_composition)
+        print("expand_style", expand_style)
+        print("weight_type", weight_type)
+        print("combine_embeds", combine_embeds)
+        print("weight_faceidv2", weight_faceidv2)
+        print("image", image)
+        print("image_style", image_style)
+        print("image_composition", image_composition)
+        print("image_negative", image_negative)
+        print("clip_vision", clip_vision)
+        print("attn_mask", attn_mask)
+        print("insightface", insightface)
+        print("embeds_scaling", embeds_scaling)
+        print("layer_weights", layer_weights)
         self.dtype = torch.float16 if ldm_patched.modules.model_management.should_use_fp16() else torch.float32
         self.device = ldm_patched.modules.model_management.get_torch_device()
         self.weight = weight
