@@ -17,9 +17,7 @@ import torch.nn.functional as F
 import torchvision.transforms as TT
 
 from lib_ipadapter.resampler import PerceiverAttention, FeedForward, Resampler
-import logging
-logger = logging.getLogger("IPAdapterPlus")
-logger.setLevel(logging.INFO)
+import json
 
 # set the models directory backward compatible
 GLOBAL_MODELS_DIR = os.path.join(folder_paths.models_dir, "ipadapter")
@@ -681,26 +679,30 @@ class IPAdapterApplyAdvanced:
 
     def apply_ipadapter(self, model, ipadapter, start_at, end_at, weight=1.0, weight_style=1.0, weight_composition=1.0, expand_style=False, weight_type="linear", combine_embeds="concat", weight_faceidv2=None, image=None, image_style=None, image_composition=None, image_negative=None, clip_vision=None, attn_mask=None, insightface=None, embeds_scaling='V only', layer_weights=None):
         # logging.log all args
-        logger.info(model)
-        logger.info(ipadapter)
-        logger.info(start_at)
-        logger.info(end_at)
-        logger.info(weight)
-        logger.info(weight_style)
-        logger.info(weight_composition)
-        logger.info(expand_style)
-        logger.info(weight_type)
-        logger.info(combine_embeds)
-        logger.info(weight_faceidv2)
-        logger.info(image)
-        logger.info(image_style)
-        logger.info(image_composition)
-        logger.info(image_negative)
-        logger.info(clip_vision)
-        logger.info(attn_mask)
-        logger.info(insightface)
-        logger.info(embeds_scaling)
-        logger.info(layer_weights)
+        with open('log_output.json', 'a') as log_file:
+            json.dump({
+                "model": model,
+                "ipadapter": ipadapter,
+                "start_at": start_at,
+                "end_at": end_at,
+                "weight": weight,
+                "weight_style": weight_style,
+                "weight_composition": weight_composition,
+                "expand_style": expand_style,
+                "weight_type": weight_type,
+                "combine_embeds": combine_embeds,
+                "weight_faceidv2": weight_faceidv2,
+                "image": image,
+                "image_style": image_style,
+                "image_composition": image_composition,
+                "image_negative": image_negative,
+                "clip_vision": clip_vision,
+                "attn_mask": attn_mask,
+                "insightface": insightface,
+                "embeds_scaling": embeds_scaling,
+                "layer_weights": layer_weights
+            }, log_file, indent=4)
+            log_file.write('\n') 
         self.dtype = torch.float16 if ldm_patched.modules.model_management.should_use_fp16() else torch.float32
         self.device = ldm_patched.modules.model_management.get_torch_device()
         self.weight = weight
