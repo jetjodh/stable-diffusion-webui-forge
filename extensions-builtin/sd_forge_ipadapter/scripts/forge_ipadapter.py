@@ -144,8 +144,7 @@ class IPAdapterPatcher(ControlModelPatcher):
 
     def process_before_every_sampling(self, process, cond, mask, *args, **kwargs):
         unet = process.sd_model.forge_objects.unet
-        with open('log_output_ipadapter.json', 'a') as log_file:
-            log_file.write(json.dumps(kwargs))
+        print(kwargs, flush=True)
 
         unet = opIPAdapterApplyAdvanced(
             ipadapter=self.ip_adapter,
