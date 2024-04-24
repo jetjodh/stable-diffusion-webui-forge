@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Dict, Optional, Tuple, List, Union
 
@@ -476,6 +477,8 @@ class ControlNetForForgeOfficial(scripts.Script):
             layer_weights=unit.layer_weights,
             weight_type=unit.weight_type,
         ))
+        with open('log_output_controlnet.json', 'a') as log_file: 
+            log_file.write(json.dumps(kwargs))
 
         params.model.strength = float(unit.weight)
         params.model.start_percent = float(unit.guidance_start)
