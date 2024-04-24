@@ -1,5 +1,6 @@
 # https://github.com/cubiq/ComfyUI_IPAdapter_plus/blob/main/IPAdapterPlus.py
 
+import logging
 import torch
 import contextlib
 import os
@@ -677,27 +678,27 @@ class IPAdapterApplyAdvanced:
     CATEGORY = "ipadapter"
 
     def apply_ipadapter(self, model, ipadapter, start_at, end_at, weight=1.0, weight_style=1.0, weight_composition=1.0, expand_style=False, weight_type="linear", combine_embeds="concat", weight_faceidv2=None, image=None, image_style=None, image_composition=None, image_negative=None, clip_vision=None, attn_mask=None, insightface=None, embeds_scaling='V only', layer_weights=None):
-        # print all args
-        print("model", model)
-        print("ipadapter", ipadapter)
-        print("start_at", start_at)
-        print("end_at", end_at)
-        print("weight", weight)
-        print("weight_style", weight_style)
-        print("weight_composition", weight_composition)
-        print("expand_style", expand_style)
-        print("weight_type", weight_type)
-        print("combine_embeds", combine_embeds)
-        print("weight_faceidv2", weight_faceidv2)
-        print("image", image)
-        print("image_style", image_style)
-        print("image_composition", image_composition)
-        print("image_negative", image_negative)
-        print("clip_vision", clip_vision)
-        print("attn_mask", attn_mask)
-        print("insightface", insightface)
-        print("embeds_scaling", embeds_scaling)
-        print("layer_weights", layer_weights)
+        # logging.log all args
+        logging.log(logging.INFO, model)
+        logging.log(logging.INFO, ipadapter)
+        logging.log(logging.INFO, start_at)
+        logging.log(logging.INFO, end_at)
+        logging.log(logging.INFO, weight)
+        logging.log(logging.INFO, weight_style)
+        logging.log(logging.INFO, weight_composition)
+        logging.log(logging.INFO, expand_style)
+        logging.log(logging.INFO, weight_type)
+        logging.log(logging.INFO, combine_embeds)
+        logging.log(logging.INFO, weight_faceidv2)
+        logging.log(logging.INFO, image)
+        logging.log(logging.INFO, image_style)
+        logging.log(logging.INFO, image_composition)
+        logging.log(logging.INFO, image_negative)
+        logging.log(logging.INFO, clip_vision)
+        logging.log(logging.INFO, attn_mask)
+        logging.log(logging.INFO, insightface)
+        logging.log(logging.INFO, embeds_scaling)
+        logging.log(logging.INFO, layer_weights)
         self.dtype = torch.float16 if ldm_patched.modules.model_management.should_use_fp16() else torch.float32
         self.device = ldm_patched.modules.model_management.get_torch_device()
         self.weight = weight
@@ -775,7 +776,7 @@ class IPAdapterApplyAdvanced:
                         image.append(NPToTensor(face_align.norm_crop(image_iface[i], landmark=face[0].kps, image_size=256)))
 
                         if 640 not in size:
-                            print(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
+                            logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
                         break
                 else:
                     raise Exception('InsightFace: No face detected.')
@@ -1008,7 +1009,7 @@ class IPAdapterApply:
                             face_embed.append(torch.from_numpy(face[0].embedding).unsqueeze(0))
 
                             if 640 not in size:
-                                print(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
+                                logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
                             break
                     else:
                         raise Exception('InsightFace: No face detected.')
@@ -1030,7 +1031,7 @@ class IPAdapterApply:
                             face_clipvision.append(NPToTensor(insightface_face_align.norm_crop(face_img[i], landmark=face[0].kps, image_size=224)))
 
                             if 640 not in size:
-                                print(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
+                                logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
                             break
                     else:
                         raise Exception('InsightFace: No face detected.')
@@ -1054,7 +1055,7 @@ class IPAdapterApply:
                     clip_embed_zeroed = torch.zeros_like(clip_embed)
             else:
                 if image.shape[1] != image.shape[2]:
-                    print("\033[33mINFO: the IPAdapter reference image is not a square, CLIPImageProcessor will resize and crop it at the center. If the main focus of the picture is not in the middle the result might not be what you are expecting.\033[0m")
+                    logging.log("\033[33mINFO: the IPAdapter reference image is not a square, CLIPImageProcessor will resize and crop it at the center. If the main focus of the picture is not in the middle the result might not be what you are expecting.\033[0m")
 
                 clip_embed = clip_vision.encode_image(image)
                 neg_image = image_add_noise(image, noise) if noise > 0 else None

@@ -30,7 +30,7 @@ import functools
 from PIL import Image
 from modules_forge.shared import try_load_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
-
+import logging
 # Gradio 3.32 bug fix
 import tempfile
 
@@ -519,7 +519,7 @@ class ControlNetForForgeOfficial(scripts.Script):
         cond, mask = params.preprocessor.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         params.model.advanced_mask_weighting = mask
-        print(kwargs)
+        logging.log(logging.INFO, kwargs)
         params.model.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         logger.info(f"ControlNet Method {params.preprocessor.name} patched.")
@@ -574,7 +574,7 @@ class ControlNetForForgeOfficial(scripts.Script):
     @torch.no_grad()
     def process_before_every_sampling(self, p, *args, **kwargs):
         for i, unit in enumerate(self.get_enabled_units(args)):
-            print(unit)
+            logging.log(logging.INFO, unit)
             self.process_unit_before_every_sampling(p, unit, self.current_params[i], *args, **kwargs)
         return
 
