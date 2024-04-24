@@ -519,7 +519,7 @@ class ControlNetForForgeOfficial(scripts.Script):
         cond, mask = params.preprocessor.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         params.model.advanced_mask_weighting = mask
-
+        print(kwargs)
         params.model.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         logger.info(f"ControlNet Method {params.preprocessor.name} patched.")
@@ -574,6 +574,7 @@ class ControlNetForForgeOfficial(scripts.Script):
     @torch.no_grad()
     def process_before_every_sampling(self, p, *args, **kwargs):
         for i, unit in enumerate(self.get_enabled_units(args)):
+            print(unit)
             self.process_unit_before_every_sampling(p, unit, self.current_params[i], *args, **kwargs)
         return
 
