@@ -1,6 +1,5 @@
 # https://github.com/cubiq/ComfyUI_IPAdapter_plus/blob/main/IPAdapterPlus.py
 
-import logging
 import torch
 import contextlib
 import os
@@ -18,6 +17,9 @@ import torch.nn.functional as F
 import torchvision.transforms as TT
 
 from lib_ipadapter.resampler import PerceiverAttention, FeedForward, Resampler
+import logging
+logger = logging.getLogger("IPAdapterPlus")
+logger.setLevel(logging.INFO)
 
 # set the models directory backward compatible
 GLOBAL_MODELS_DIR = os.path.join(folder_paths.models_dir, "ipadapter")
@@ -679,26 +681,26 @@ class IPAdapterApplyAdvanced:
 
     def apply_ipadapter(self, model, ipadapter, start_at, end_at, weight=1.0, weight_style=1.0, weight_composition=1.0, expand_style=False, weight_type="linear", combine_embeds="concat", weight_faceidv2=None, image=None, image_style=None, image_composition=None, image_negative=None, clip_vision=None, attn_mask=None, insightface=None, embeds_scaling='V only', layer_weights=None):
         # logging.log all args
-        logging.log(logging.INFO, model)
-        logging.log(logging.INFO, ipadapter)
-        logging.log(logging.INFO, start_at)
-        logging.log(logging.INFO, end_at)
-        logging.log(logging.INFO, weight)
-        logging.log(logging.INFO, weight_style)
-        logging.log(logging.INFO, weight_composition)
-        logging.log(logging.INFO, expand_style)
-        logging.log(logging.INFO, weight_type)
-        logging.log(logging.INFO, combine_embeds)
-        logging.log(logging.INFO, weight_faceidv2)
-        logging.log(logging.INFO, image)
-        logging.log(logging.INFO, image_style)
-        logging.log(logging.INFO, image_composition)
-        logging.log(logging.INFO, image_negative)
-        logging.log(logging.INFO, clip_vision)
-        logging.log(logging.INFO, attn_mask)
-        logging.log(logging.INFO, insightface)
-        logging.log(logging.INFO, embeds_scaling)
-        logging.log(logging.INFO, layer_weights)
+        logger.info(model)
+        logger.info(ipadapter)
+        logger.info(start_at)
+        logger.info(end_at)
+        logger.info(weight)
+        logger.info(weight_style)
+        logger.info(weight_composition)
+        logger.info(expand_style)
+        logger.info(weight_type)
+        logger.info(combine_embeds)
+        logger.info(weight_faceidv2)
+        logger.info(image)
+        logger.info(image_style)
+        logger.info(image_composition)
+        logger.info(image_negative)
+        logger.info(clip_vision)
+        logger.info(attn_mask)
+        logger.info(insightface)
+        logger.info(embeds_scaling)
+        logger.info(layer_weights)
         self.dtype = torch.float16 if ldm_patched.modules.model_management.should_use_fp16() else torch.float32
         self.device = ldm_patched.modules.model_management.get_torch_device()
         self.weight = weight

@@ -5,6 +5,9 @@ from modules_forge.shared import add_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
 from lib_ipadapter.IPAdapterPlus import IPAdapterApply, IPAdapterApplyAdvanced, IPAdapterApplyStyleComposition, InsightFaceLoader
 from pathlib import Path
+import logging
+logger = logging.getLogger("IPAdapter")
+logger.setLevel(logging.INFO)
 
 
 opIPAdapterApply = IPAdapterApply().apply_ipadapter
@@ -144,7 +147,7 @@ class IPAdapterPatcher(ControlModelPatcher):
 
     def process_before_every_sampling(self, process, cond, mask, *args, **kwargs):
         unet = process.sd_model.forge_objects.unet
-        print(kwargs)
+        logger.info(kwargs)
 
         unet = opIPAdapterApplyAdvanced(
             ipadapter=self.ip_adapter,
