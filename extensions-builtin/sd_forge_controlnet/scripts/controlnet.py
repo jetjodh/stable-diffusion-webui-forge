@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Dict, Optional, Tuple, List, Union
 
@@ -31,6 +30,7 @@ import functools
 from PIL import Image
 from modules_forge.shared import try_load_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
+
 # Gradio 3.32 bug fix
 import tempfile
 
@@ -53,9 +53,6 @@ class ControlNetCachedParameters:
         self.control_cond_for_hr_fix = None
         self.control_mask = None
         self.control_mask_for_hr_fix = None
-        self.style_image = None
-        self.composition_image = None
-        self.negative_image = None
 
 
 class ControlNetForForgeOfficial(scripts.Script):
@@ -83,16 +80,16 @@ class ControlNetForForgeOfficial(scripts.Script):
                     if not shared.opts.data.get("controlnet_disable_photopea_edit", False)
                     else None
                 )
-                # with gr.Row(elem_id=elem_id_tabname + "_accordions", elem_classes="accordions"):
-                #     for i in range(max_models):
-                #         with InputAccordion(
-                #             value=False,
-                #             label=f"ControlNet Unit {i}",
-                #             elem_classes=["cnet-unit-enabled-accordion"],  # Class on accordion
-                #         ):
-                #             group = ControlNetUiGroup(is_img2img, default_unit, photopea)
-                #             ui_groups.append(group)
-                #             controls.append(group.render(f"ControlNet-{i}", elem_id_tabname))
+                with gr.Row(elem_id=elem_id_tabname + "_accordions", elem_classes="accordions"):
+                    for i in range(max_models):
+                        with InputAccordion(
+                            value=False,
+                            label=f"ControlNet Unit {i}",
+                            elem_classes=["cnet-unit-enabled-accordion"],  # Class on accordion
+                        ):
+                            group = ControlNetUiGroup(is_img2img, default_unit, photopea)
+                            ui_groups.append(group)
+                            controls.append(group.render(f"ControlNet-{i}", elem_id_tabname))
 
         for i, ui_group in enumerate(ui_groups):
             infotext.register_unit(i, ui_group)
@@ -229,14 +226,6 @@ class ControlNetForForgeOfficial(scripts.Script):
 
             image = self.try_crop_image_with_a1111_mask(p, unit, image, resize_mode, preprocessor)
 
-            style_image = composition_image = negative_image = None
-            if unit["style_image"] is not None:
-                style_image = self.try_crop_image_with_a1111_mask(p, unit, unit["style_image"], resize_mode, preprocessor)
-            if unit["composition_image"] is not None:
-                composition_image = self.try_crop_image_with_a1111_mask(p, unit, unit["composition_image"], resize_mode, preprocessor)
-            if unit["negative_image"] is not None:
-                negative_image = self.try_crop_image_with_a1111_mask(p, unit, unit["negative_image"], resize_mode, preprocessor)
-
             if mask is not None:
                 mask = cv2.resize(HWC3(mask), (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
                 mask = self.try_crop_image_with_a1111_mask(p, unit, mask, resize_mode, preprocessor)
@@ -261,7 +250,7 @@ class ControlNetForForgeOfficial(scripts.Script):
                 new_image_list.append((input_image, input_mask))
             image_list = new_image_list
 
-        return image_list, resize_mode, style_image, composition_image, negative_image
+        return image_list, resize_mode
 
     @staticmethod
     def get_target_dimensions(p: StableDiffusionProcessing) -> Tuple[int, int, int, int]:
@@ -306,14 +295,11 @@ class ControlNetForForgeOfficial(scripts.Script):
 
         preprocessor = global_state.get_preprocessor(unit.module)
 
-        input_list, resize_mode, style_image, composition_image, negative_image = self.get_input_data(p, unit, preprocessor, h, w)
+        input_list, resize_mode = self.get_input_data(p, unit, preprocessor, h, w)
         preprocessor_outputs = []
         control_masks = []
         preprocessor_output_is_image = False
         preprocessor_output = None
-        params.style_image = style_image
-        params.composition_image = composition_image
-        params.negative_image = negative_image
 
         def optional_tqdm(iterable, use_tqdm):
             from tqdm import tqdm
@@ -468,17 +454,7 @@ class ControlNetForForgeOfficial(scripts.Script):
             params=params,
             cond_original=cond.clone() if isinstance(cond, torch.Tensor) else cond,
             mask_original=mask.clone() if isinstance(mask, torch.Tensor) else mask,
-            image_style=params.style_image,
-            image_composition=params.composition_image,
-            image_negative=params.negative_image,
-            weight_composition=unit.weight_composition,
-            combine_embeds=unit.combine_embeds,
-            embeds_scaling=unit.embeds_scaling,
-            layer_weights=unit.layer_weights,
-            weight_type=unit.weight_type,
         ))
-        with open('log_output_controlnet.json', 'a') as log_file: 
-            log_file.write(json.dumps(kwargs))
 
         params.model.strength = float(unit.weight)
         params.model.start_percent = float(unit.guidance_start)
@@ -521,7 +497,7 @@ class ControlNetForForgeOfficial(scripts.Script):
         cond, mask = params.preprocessor.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         params.model.advanced_mask_weighting = mask
-        logging.log(logging.INFO, kwargs)
+
         params.model.process_before_every_sampling(p, cond, mask, *args, **kwargs)
 
         logger.info(f"ControlNet Method {params.preprocessor.name} patched.")
@@ -576,7 +552,6 @@ class ControlNetForForgeOfficial(scripts.Script):
     @torch.no_grad()
     def process_before_every_sampling(self, p, *args, **kwargs):
         for i, unit in enumerate(self.get_enabled_units(args)):
-            logger.info(unit)
             self.process_unit_before_every_sampling(p, unit, self.current_params[i], *args, **kwargs)
         return
 
@@ -631,6 +606,6 @@ def on_ui_settings():
 
 script_callbacks.on_ui_settings(on_ui_settings)
 script_callbacks.on_infotext_pasted(Infotext.on_infotext_pasted)
-# script_callbacks.on_after_component(ControlNetUiGroup.on_after_component)
-# script_callbacks.on_before_reload(ControlNetUiGroup.reset)
+script_callbacks.on_after_component(ControlNetUiGroup.on_after_component)
+script_callbacks.on_before_reload(ControlNetUiGroup.reset)
 script_callbacks.on_app_started(controlnet_api)

@@ -3,12 +3,11 @@ from modules_forge.shared import add_supported_preprocessor
 from modules_forge.forge_util import numpy_to_pytorch
 from modules_forge.shared import add_supported_control_model
 from modules_forge.supported_controlnet import ControlModelPatcher
-from lib_ipadapter.IPAdapterPlus import IPAdapterApply, IPAdapterApplyAdvanced, IPAdapterApplyStyleComposition, InsightFaceLoader
+from lib_ipadapter.IPAdapterPlus import IPAdapterApply, InsightFaceLoader
 from pathlib import Path
-import json
+
 
 opIPAdapterApply = IPAdapterApply().apply_ipadapter
-opIPAdapterApplyAdvanced = IPAdapterApplyAdvanced().apply_ipadapter
 opInsightFaceLoader = InsightFaceLoader().load_insight_face
 
 
@@ -144,9 +143,8 @@ class IPAdapterPatcher(ControlModelPatcher):
 
     def process_before_every_sampling(self, process, cond, mask, *args, **kwargs):
         unet = process.sd_model.forge_objects.unet
-        print(kwargs, flush=True)
 
-        unet = opIPAdapterApplyAdvanced(
+        unet = opIPAdapterApply(
             ipadapter=self.ip_adapter,
             model=unet,
             weight=self.strength,
@@ -155,14 +153,6 @@ class IPAdapterPatcher(ControlModelPatcher):
             faceid_v2=self.faceid_v2,
             weight_v2=self.weight_v2,
             attn_mask=mask.squeeze(1) if mask is not None else None,
-            weight_type=kwargs["weight_type"],
-            image_style=kwargs["image_style"],
-            image_composition=kwargs["image_composition"],  # Assuming no specific image composition is passed; adjust as necessary
-            image_negative=kwargs["image_negative"],
-            weight_composition=kwargs["weight_composition"],  # Default or adjust as necessary
-            combine_embeds=kwargs["combine_embeds"],
-            embeds_scaling=kwargs["embeds_scaling"],
-            layer_weights=kwargs["layer_weights"],
             **cond,
         )[0]
 

@@ -62,15 +62,6 @@ def controlnet_api(_: gr.Blocks, app: FastAPI):
         ),
         controlnet_threshold_a: float = Body(64, title="Controlnet Threshold a"),
         controlnet_threshold_b: float = Body(64, title="Controlnet Threshold b"),
-        style_image: str = Body(None, title="Style Image"),
-        composition_image: str = Body(None, title="Composition Image"),
-        negative_image: str = Body(None, title="Negative Image"),
-        weight_style: float = Body(1, title="Weight Style"),
-        weight_composition: float = Body(1, title="Weight Composition"),
-        combine_embeds: str = Body("average", title="Combine Embeds"),
-        embeds_scaling: str = Body("V only", title="Embeds Scaling"),
-        weight_type: str = Body("linear", title="Weight Type"),
-        layer_weights: str = Body("", title="Layer Weights"),
     ):
         processor_module = get_preprocessor(controlnet_module)
         if processor_module is None:
@@ -88,12 +79,6 @@ def controlnet_api(_: gr.Blocks, app: FastAPI):
 
         for input_image in controlnet_input_images:
             img = np.array(api.decode_base64_to_image(input_image)).astype('uint8')
-            if style_image:
-                style_image = np.array(api.decode_base64_to_image(style_image)).astype('uint8')
-            if composition_image:
-                composition_image = np.array(api.decode_base64_to_image(composition_image)).astype('uint8')
-            if negative_image:
-                negative_image = np.array(api.decode_base64_to_image(negative_image)).astype('uint8')
 
             class JsonAcceptor:
                 def __init__(self) -> None:
@@ -110,15 +95,6 @@ def controlnet_api(_: gr.Blocks, app: FastAPI):
                     resolution=controlnet_processor_res,
                     slider_1=controlnet_threshold_a,
                     slider_2=controlnet_threshold_b,
-                    style_image=style_image,
-                    composition_image=composition_image,
-                    negative_image=negative_image,
-                    weight_style=weight_style,
-                    weight_composition=weight_composition,
-                    combine_embeds=combine_embeds,
-                    embeds_scaling=embeds_scaling,
-                    weight_type=weight_type,
-                    layer_weights=layer_weights,
                     json_pose_callback=json_acceptor.accept,
                 )
             )

@@ -25,7 +25,7 @@ class ColoredFormatter(logging.Formatter):
 
 # Create a new logger
 logger = logging.getLogger("ControlNet")
-logger.propagate = True
+logger.propagate = False
 
 # Add handler if we don't have one.
 if not logger.handlers:

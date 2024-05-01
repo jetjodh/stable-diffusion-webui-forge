@@ -179,9 +179,6 @@ class ControlNetUiGroup(object):
         self.enabled = None
         self.upload_tab = None
         self.image = None
-        self.style_image = None
-        self.composition_image = None
-        self.negative_image = None
         self.generated_image_group = None
         self.generated_image = None
         self.mask_image_group = None
@@ -218,10 +215,6 @@ class ControlNetUiGroup(object):
         self.threshold_b = None
         self.control_mode = None
         self.resize_mode = None
-        self.weight_style = None
-        self.weight_composition = None
-        self.combine_embeds = None
-        self.embeds_scaling = None
         self.use_preview_as_input = None
         self.openpose_editor = None
         self.preset_panel = None
@@ -561,40 +554,6 @@ class ControlNetUiGroup(object):
                 interactive=True,
                 elem_id=f"{elem_id_tabname}_{tabname}_controlnet_threshold_B_slider",
             )
-            self.weight_style = gr.Slider(
-                label="Style Weight",
-                value=self.default_unit.weight_style,
-                minimum=-1.0,
-                maximum=5.0,
-                visible=False,
-                interactive=True,
-                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_style_weight_slider",
-            )
-            self.weight_composition = gr.Slider(
-                label="Composition Weight",
-                value=self.default_unit.weight_composition,
-                minimum=-1.0,
-                maximum=5.0,
-                visible=False,
-                interactive=True,
-                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_composition_weight_slider",
-            )
-            self.combine_embeds = gr.Radio(
-                choices=["concat", "add", "subtract", "average", "norm average"],
-                value=self.default_unit.combine_embeds,
-                label="Combine Embeds",
-                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_weight_type_radio",
-                elem_classes="controlnet_weight_type_radio",
-                visible=False,
-            )
-            self.embeds_scaling = gr.Radio(
-                choices=['V only', 'K+V', 'K+V w/ C penalty', 'K+mean(V) w/ C penalty'],
-                value=self.default_unit.embeds_scaling,
-                label="Embeds Scaling",
-                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_weight_type_radio",
-                elem_classes="controlnet_weight_type_radio",
-                visible=False,
-            )
 
         self.control_mode = gr.Radio(
             choices=[e.value for e in external_code.ControlMode],
@@ -651,13 +610,6 @@ class ControlNetUiGroup(object):
             self.model,
             self.weight,
             self.image,
-            self.style_image,
-            self.composition_image,
-            self.negative_image,
-            self.weight_style,
-            self.weight_composition,
-            self.combine_embeds,
-            self.embeds_scaling,
             self.resize_mode,
             self.processor_res,
             self.threshold_a,
@@ -670,8 +622,6 @@ class ControlNetUiGroup(object):
 
         unit = gr.State(self.default_unit)
         for comp in unit_args + (self.dummy_gradio_update_trigger,):
-            if comp is None:
-                continue  # Skip if the component is not initialized
             event_subscribers = []
             if hasattr(comp, "edit"):
                 event_subscribers.append(comp.edit)
@@ -687,7 +637,7 @@ class ControlNetUiGroup(object):
 
             for event_subscriber in event_subscribers:
                 event_subscriber(
-                    fn=UiControlNetUnit, inputs=[c for c in unit_args if c is not None], outputs=unit
+                    fn=UiControlNetUnit, inputs=list(unit_args), outputs=unit
                 )
 
         (
@@ -802,10 +752,6 @@ class ControlNetUiGroup(object):
             self.model,
             self.refresh_models,
             self.control_mode,
-            self.weight_style,
-            self.weight_composition,
-            self.combine_embeds,
-            self.embeds_scaling,
         ]
         self.module.change(
             build_sliders, inputs=inputs, outputs=outputs, show_progress=False
@@ -932,13 +878,6 @@ class ControlNetUiGroup(object):
                 self.processor_res,
                 self.threshold_a,
                 self.threshold_b,
-                self.style_image,
-                self.composition_image,
-                self.negative_image,
-                self.weight_style,
-                self.weight_composition,
-                self.combine_embeds,
-                self.embeds_scaling,
                 self.width_slider,
                 self.height_slider,
                 self.pixel_perfect,
@@ -1117,13 +1056,6 @@ class ControlNetUiGroup(object):
             self.processor_res,
             self.threshold_a,
             self.threshold_b,
-            self.style_image,
-            self.composition_image,
-            self.negative_image,
-            self.weight_style,
-            self.weight_composition,
-            self.combine_embeds,
-            self.embeds_scaling,
             self.upload_independent_img_in_img2img,
         ):
             event_subscribers = []

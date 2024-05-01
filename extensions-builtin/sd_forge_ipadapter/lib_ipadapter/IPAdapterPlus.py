@@ -17,7 +17,6 @@ import torch.nn.functional as F
 import torchvision.transforms as TT
 
 from lib_ipadapter.resampler import PerceiverAttention, FeedForward, Resampler
-import json
 
 # set the models directory backward compatible
 GLOBAL_MODELS_DIR = os.path.join(folder_paths.models_dir, "ipadapter")
@@ -359,36 +358,31 @@ class IPAdapter(nn.Module):
 
 class CrossAttentionPatch:
     # forward for patching
-    def __init__(self, weight, ipadapter, number, cond, uncond, cond_alt, weight_type, mask=None, sigma_start=0.0, sigma_end=1.0, unfold_batch=False, embeds_scaling='V only'):
+    def __init__(self, weight, ipadapter, number, cond, uncond, weight_type, mask=None, sigma_start=0.0, sigma_end=1.0, unfold_batch=False):
         self.weights = [weight]
         self.ipadapters = [ipadapter]
         self.conds = [cond]
         self.unconds = [uncond]
-        self.conds_alt = [cond_alt]
         self.number = number
         self.weight_type = [weight_type]
         self.masks = [mask]
         self.sigma_start = [sigma_start]
         self.sigma_end = [sigma_end]
         self.unfold_batch = [unfold_batch]
-        self.embeds_scaling = [embeds_scaling]
-        self.layers = 11 if '101_to_k_ip' in ipadapter.ip_layers.to_kvs else 16 # TODO: check if this is a valid condition to detect all models
 
         self.k_key = str(self.number*2+1) + "_to_k_ip"
         self.v_key = str(self.number*2+1) + "_to_v_ip"
     
-    def set_new_condition(self, weight, ipadapter, number, cond, uncond, cond_alt, weight_type, mask=None, sigma_start=0.0, sigma_end=1.0, unfold_batch=False, embeds_scaling='V only'):
+    def set_new_condition(self, weight, ipadapter, number, cond, uncond, weight_type, mask=None, sigma_start=0.0, sigma_end=1.0, unfold_batch=False):
         self.weights.append(weight)
         self.ipadapters.append(ipadapter)
         self.conds.append(cond)
         self.unconds.append(uncond)
-        self.conds_alt.append(cond_alt)
         self.masks.append(mask)
         self.weight_type.append(weight_type)
         self.sigma_start.append(sigma_start)
         self.sigma_end.append(sigma_end)
         self.unfold_batch.append(unfold_batch)
-        self.embeds_scaling.append(embeds_scaling)
 
     def __call__(self, n, context_attn2, value_attn2, extra_options):
         org_dtype = n.dtype
@@ -396,10 +390,6 @@ class CrossAttentionPatch:
 
         sigma = extra_options["sigmas"][0] if 'sigmas' in extra_options else None
         sigma = sigma.item() if sigma is not None else 999999999.9
-        
-        block_type = extra_options["block"][0]
-        #block_id = extra_options["block"][1]
-        t_idx = extra_options["transformer_index"]
 
         # extra options for AnimateDiff
         ad_params = extra_options['ad_params'] if "ad_params" in extra_options else None
@@ -413,33 +403,9 @@ class CrossAttentionPatch:
         out = optimized_attention(q, k, v, extra_options["n_heads"])
         _, _, lh, lw = extra_options["original_shape"]
         
-        for weight, cond, uncond, cond_alt, ipadapter, mask, weight_type, sigma_start, sigma_end, unfold_batch, embeds_scaling in zip(self.weights, self.conds, self.unconds, self.conds_alt, self.ipadapters, self.masks, self.weight_type, self.sigma_start, self.sigma_end, self.unfold_batch, self.embeds_scaling):
+        for weight, cond, uncond, ipadapter, mask, weight_type, sigma_start, sigma_end, unfold_batch in zip(self.weights, self.conds, self.unconds, self.ipadapters, self.masks, self.weight_type, self.sigma_start, self.sigma_end, self.unfold_batch):
             if sigma > sigma_start or sigma < sigma_end:
-                if weight_type == 'ease in':
-                    weight = weight * (0.05 + 0.95 * (1 - t_idx / self.layers))
-                elif weight_type == 'ease out':
-                    weight = weight * (0.05 + 0.95 * (t_idx / self.layers))
-                elif weight_type == 'ease in-out':
-                    weight = weight * (0.05 + 0.95 * (1 - abs(t_idx - (self.layers/2)) / (self.layers/2)))
-                elif weight_type == 'reverse in-out':
-                    weight = weight * (0.05 + 0.95 * (abs(t_idx - (self.layers/2)) / (self.layers/2)))
-                elif weight_type == 'weak input' and block_type == 'input':
-                    weight = weight * 0.2
-                elif weight_type == 'weak middle' and block_type == 'middle':
-                    weight = weight * 0.2
-                elif weight_type == 'weak output' and block_type == 'output':
-                    weight = weight * 0.2
-                elif weight_type == 'strong middle' and (block_type == 'input' or block_type == 'output'):
-                    weight = weight * 0.2
-                elif isinstance(weight, dict):
-                    if t_idx not in weight:
-                        continue
-
-                    weight = weight[t_idx]
-
-                    if cond_alt is not None and t_idx in cond_alt:
-                        cond = cond_alt[t_idx]
-                        del cond_alt
+                continue
 
             if unfold_batch and cond.shape[0] > 1:
                 # Check AnimateDiff context window
@@ -487,38 +453,16 @@ class CrossAttentionPatch:
                 ip_k = torch.cat([(k_cond, k_uncond)[i] for i in cond_or_uncond], dim=0)
                 ip_v = torch.cat([(v_cond, v_uncond)[i] for i in cond_or_uncond], dim=0)
 
-            #     if weight_type.startswith("channel"):
-            #         # code by Lvmin Zhang at Stanford University as also seen on Fooocus IPAdapter implementation
-            #         # please read licensing notes https://github.com/lllyasviel/Fooocus/blob/69a23c4d60c9e627409d0cb0f8862cdb015488eb/extras/ip_adapter.py#L234
-            #         ip_v_mean = torch.mean(ip_v, dim=1, keepdim=True)
-            #         ip_v_offset = ip_v - ip_v_mean
-            #         _, _, C = ip_k.shape
-            #         channel_penalty = float(C) / 1280.0
-            #         W = weight * channel_penalty
-            #         ip_k = ip_k * W
-            #         ip_v = ip_v_offset + ip_v_mean * W
-            if embeds_scaling == 'K+mean(V) w/ C penalty':
-                scaling = float(ip_k.shape[2]) / 1280.0
-                weight = weight * scaling
-                ip_k = ip_k * weight
-                ip_v_mean = torch.mean(ip_v, dim=1, keepdim=True)
-                ip_v = (ip_v - ip_v_mean) + ip_v_mean * weight
-                out_ip = optimized_attention(q, ip_k, ip_v, extra_options["n_heads"])
-                del ip_v_mean
-            elif embeds_scaling == 'K+V w/ C penalty':
-                scaling = float(ip_k.shape[2]) / 1280.0
-                weight = weight * scaling
-                ip_k = ip_k * weight
-                ip_v = ip_v * weight
-                out_ip = optimized_attention(q, ip_k, ip_v, extra_options["n_heads"])
-            elif embeds_scaling == 'K+V':
-                ip_k = ip_k * weight
-                ip_v = ip_v * weight
-                out_ip = optimized_attention(q, ip_k, ip_v, extra_options["n_heads"])
-            else:
-                #ip_v = ip_v * weight
-                out_ip = optimized_attention(q, ip_k, ip_v, extra_options["n_heads"])
-                out_ip = out_ip * weight # I'm doing this to get the same results as before
+                if weight_type.startswith("channel"):
+                    # code by Lvmin Zhang at Stanford University as also seen on Fooocus IPAdapter implementation
+                    # please read licensing notes https://github.com/lllyasviel/Fooocus/blob/69a23c4d60c9e627409d0cb0f8862cdb015488eb/extras/ip_adapter.py#L234
+                    ip_v_mean = torch.mean(ip_v, dim=1, keepdim=True)
+                    ip_v_offset = ip_v - ip_v_mean
+                    _, _, C = ip_k.shape
+                    channel_penalty = float(C) / 1280.0
+                    W = weight * channel_penalty
+                    ip_k = ip_k * W
+                    ip_v = ip_v_offset + ip_v_mean * W
 
             out_ip = optimized_attention(q, ip_k.to(org_dtype), ip_v.to(org_dtype), extra_options["n_heads"])
             if weight_type.startswith("original"):
@@ -643,305 +587,6 @@ class InsightFaceLoader:
 
         return (model,)
 
-class IPAdapterApplyAdvanced:
-    def __init__(self):
-        self.unfold_batch = False
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "model": ("MODEL", ),
-                "ipadapter": ("IPADAPTER", ),
-                "image": ("IMAGE", ),
-                "image_style": ("IMAGE",),
-                "image_composition": ("IMAGE",),
-                "weight_composition": ("FLOAT", { "default": 1.0, "min": -1, "max": 5, "step": 0.05 }),
-                "weight_type": (["linear", "ease in", "ease out", 'ease in-out', 'reverse in-out', 'weak input', 'weak output', 'weak middle', 'strong middle', 'style transfer', 'composition', 'strong style transfer'], ),
-                "combine_embeds": (["concat", "add", "subtract", "average", "norm average"], {"default": "average"}),
-                "start_at": ("FLOAT", { "default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001 }),
-                "end_at": ("FLOAT", { "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001 }),
-                "embeds_scaling": (['V only', 'K+V', 'K+V w/ C penalty', 'K+mean(V) w/ C penalty'], ),
-                "layer_weights": ("STRING", { "default": "", "multiline": True }),
-                "expand_style": ("BOOLEAN", { "default": False }),
-                "unfold_batch": ("BOOLEAN", { "default": False }),
-            },
-            "optional": {
-                "image_negative": ("IMAGE",),
-                "attn_mask": ("MASK",),
-                "clip_vision": ("CLIP_VISION",),
-            }
-        }
-
-    RETURN_TYPES = ("MODEL",)
-    FUNCTION = "apply_ipadapter"
-    CATEGORY = "ipadapter"
-
-    def apply_ipadapter(self, model, ipadapter, start_at, end_at, weight=1.0, weight_style=1.0, weight_composition=1.0, expand_style=False, weight_type="linear", combine_embeds="concat", weight_faceidv2=None, image=None, image_style=None, image_composition=None, image_negative=None, clip_vision=None, attn_mask=None, insightface=None, embeds_scaling='V only', layer_weights=None):
-        # logging.log all args
-        print(model, flush=True)
-        print(ipadapter, flush=True)
-        print(start_at, flush=True)
-        print(end_at, flush=True)
-        print(weight, flush=True)
-        print(weight_style, flush=True)
-        print(weight_composition, flush=True)
-        print(expand_style, flush=True)
-        print(weight_type, flush=True)
-        print(combine_embeds, flush=True)
-        print(weight_faceidv2, flush=True)
-        print(image, flush=True)
-        print(image_style, flush=True)
-        print(image_composition, flush=True)
-        print(image_negative, flush=True)
-        print(clip_vision, flush=True)
-        print(attn_mask, flush=True)
-        print(insightface, flush=True)
-        print(embeds_scaling, flush=True)
-        print(layer_weights, flush=True)
-        self.dtype = torch.float16 if ldm_patched.modules.model_management.should_use_fp16() else torch.float32
-        self.device = ldm_patched.modules.model_management.get_torch_device()
-        self.weight = weight
-        self.is_full = "proj.3.weight" in ipadapter["image_proj"]
-        self.is_plus = (self.is_full or "latents" in ipadapter["image_proj"] or "perceiver_resampler.proj_in.weight" in ipadapter["image_proj"])
-        self.is_portrait = "proj.2.weight" in ipadapter["image_proj"] and not "proj.3.weight" in ipadapter["image_proj"] and not "0.to_q_lora.down.weight" in ipadapter["ip_adapter"]
-        self.is_portrait_unnorm = "portraitunnorm" in ipadapter
-        self.combine_embeds = combine_embeds
-
-        output_cross_attention_dim = ipadapter["ip_adapter"]["1.to_k_ip.weight"].shape[1]
-        self.is_sdxl = output_cross_attention_dim == 2048
-        cross_attention_dim = 1280 if (self.is_plus and self.is_sdxl and not self.is_faceid) or self.is_portrait else output_cross_attention_dim
-        clip_extra_context_tokens = 16 if self.is_plus or self.is_portrait else 4
-
-        if isinstance(weight, list):
-            weight = torch.tensor(weight).unsqueeze(-1).unsqueeze(-1).to(self.device, dtype=self.dtype) if self.unfold_batch else weight[0]   
- 
-        if image_style is not None: # we are doing style + composition transfer
-            if not self.is_sdxl:
-                raise Exception("Style + Composition transfer is only available for SDXL models at the moment.") # TODO: check feasibility for SD1.5 models
-
-            image = image_style
-            weight = weight_style
-            if image_composition is None:
-                image_composition = image_style
-
-            weight_type = "strong style and composition" if expand_style else "style and composition"
-
-        # special weight types
-        if layer_weights is not None and layer_weights != '':
-            weight = { int(k): float(v)*weight for k, v in [x.split(":") for x in layer_weights.split(",")] }
-            weight_type = "linear"
-        elif weight_type.startswith("style transfer"):
-            weight = { 6:weight } if self.is_sdxl else { 0:weight, 1:weight, 2:weight, 3:weight, 9:weight, 10:weight, 11:weight, 12:weight, 13:weight, 14:weight, 15:weight }
-        elif weight_type.startswith("composition"):
-            weight = { 3:weight } if self.is_sdxl else { 4:weight*0.25, 5:weight }
-        elif weight_type == "strong style transfer":
-            if self.is_sdxl:
-                weight = { 0:weight, 1:weight, 2:weight, 4:weight, 5:weight, 6:weight, 7:weight, 8:weight, 9:weight, 10:weight }
-            else:
-                weight = { 0:weight, 1:weight, 2:weight, 3:weight, 6:weight, 7:weight, 8:weight, 9:weight, 10:weight, 11:weight, 12:weight, 13:weight, 14:weight, 15:weight }
-        elif weight_type == "style and composition":
-            if self.is_sdxl:
-                weight = { 3:weight_composition, 6:weight }
-            else:
-                weight = { 0:weight, 1:weight, 2:weight, 3:weight, 4:weight_composition*0.25, 5:weight_composition, 9:weight, 10:weight, 11:weight, 12:weight, 13:weight, 14:weight, 15:weight }
-        elif weight_type == "strong style and composition":
-            if self.is_sdxl:
-                weight = { 0:weight, 1:weight, 2:weight, 3:weight_composition, 4:weight, 5:weight, 6:weight, 7:weight, 8:weight, 9:weight, 10:weight }
-            else:
-                weight = { 0:weight, 1:weight, 2:weight, 3:weight, 4:weight_composition, 5:weight_composition, 6:weight, 7:weight, 8:weight, 9:weight, 10:weight, 11:weight, 12:weight, 13:weight, 14:weight, 15:weight }
-
-        img_comp_cond_embeds = None
-        face_cond_embeds = None
-        if self.is_faceid:
-            if insightface is None:
-                raise Exception("Insightface model is required for FaceID models")
-
-            from insightface.utils import face_align
-
-            insightface.det_model.input_size = (640,640) # reset the detection size
-            image_iface = tensorToNP(image)
-            face_cond_embeds = []
-            image = []
-
-            for i in range(image_iface.shape[0]):
-                for size in [(size, size) for size in range(640, 256, -64)]:
-                    insightface.det_model.input_size = size # TODO: hacky but seems to be working
-                    face = insightface.get(image_iface[i])
-                    if face:
-                        if not self.is_portrait_unnorm:
-                            face_cond_embeds.append(torch.from_numpy(face[0].normed_embedding).unsqueeze(0))
-                        else:
-                            face_cond_embeds.append(torch.from_numpy(face[0].embedding).unsqueeze(0))
-                        image.append(NPToTensor(face_align.norm_crop(image_iface[i], landmark=face[0].kps, image_size=256)))
-
-                        if 640 not in size:
-                            logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
-                        break
-                else:
-                    raise Exception('InsightFace: No face detected.')
-            face_cond_embeds = torch.stack(face_cond_embeds).to(self.device, dtype=self.dtype)
-            image = torch.stack(image)
-            del image_iface, face
-
-        if image is not None:
-            img_cond_embeds = clip_vision.encode_image(image).penultimate_hidden_states
-            if image_composition is not None:
-                img_comp_cond_embeds = clip_vision.encode_image(image_composition).penultimate_hidden_states
-
-            if self.is_plus:
-                img_cond_embeds = img_cond_embeds.penultimate_hidden_states
-                image_negative = image_negative if image_negative is not None else torch.zeros([1, 224, 224, 3])
-                img_uncond_embeds = clip_vision.encode_image(image_negative).penultimate_hidden_states
-                if image_composition is not None:
-                    img_comp_cond_embeds = img_comp_cond_embeds.penultimate_hidden_states
-            else:
-                img_cond_embeds = img_cond_embeds.image_embeds if not self.is_faceid else face_cond_embeds
-                if image_negative is not None and not self.is_faceid:
-                    img_uncond_embeds = clip_vision.encode_image(image_negative).image_embeds
-                else:
-                    img_uncond_embeds = torch.zeros_like(img_cond_embeds)
-                if image_composition is not None:
-                    img_comp_cond_embeds = img_comp_cond_embeds.image_embeds
-            del image, image_negative, image_composition
-        elif pos_embed is not None:
-            img_cond_embeds = pos_embed
-
-            if neg_embed is not None:
-                img_uncond_embeds = neg_embed
-            else:
-                if self.is_plus:
-                    img_uncond_embeds = clip_vision.encode_image(torch.zeros([1, 224, 224, 3])).penultimate_hidden_states
-                else:
-                    img_uncond_embeds = torch.zeros_like(img_cond_embeds)
-            del pos_embed, neg_embed
-        else:
-            raise Exception("Images or Embeds are required")
-        
-        # combine the embeddings if needed
-        if self.combine_embeds != "concat" and img_cond_embeds.shape[0] > 1 and not self.unfold_batch:
-            if self.combine_embeds == "add":
-                img_cond_embeds = torch.sum(img_cond_embeds, dim=0).unsqueeze(0)
-                if face_cond_embeds is not None:
-                    face_cond_embeds = torch.sum(face_cond_embeds, dim=0).unsqueeze(0)
-                if img_comp_cond_embeds is not None:
-                    img_comp_cond_embeds = torch.sum(img_comp_cond_embeds, dim=0).unsqueeze(0)
-            elif self.combine_embeds == "subtract":
-                img_cond_embeds = img_cond_embeds[0] - torch.mean(img_cond_embeds[1:], dim=0)
-                img_cond_embeds = img_cond_embeds.unsqueeze(0)
-                if face_cond_embeds is not None:
-                    face_cond_embeds = face_cond_embeds[0] - torch.mean(face_cond_embeds[1:], dim=0)
-                    face_cond_embeds = face_cond_embeds.unsqueeze(0)
-                if img_comp_cond_embeds is not None:
-                    img_comp_cond_embeds = img_comp_cond_embeds[0] - torch.mean(img_comp_cond_embeds[1:], dim=0)
-                    img_comp_cond_embeds = img_comp_cond_embeds.unsqueeze(0)
-            elif self.combine_embeds == "average":
-                img_cond_embeds = torch.mean(img_cond_embeds, dim=0).unsqueeze(0)
-                if face_cond_embeds is not None:
-                    face_cond_embeds = torch.mean(face_cond_embeds, dim=0).unsqueeze(0)
-                if img_comp_cond_embeds is not None:
-                    img_comp_cond_embeds = torch.mean(img_comp_cond_embeds, dim=0).unsqueeze(0)
-            elif self.combine_embeds == "norm average":
-                img_cond_embeds = torch.mean(img_cond_embeds / torch.norm(img_cond_embeds, dim=0, keepdim=True), dim=0).unsqueeze(0)
-                if face_cond_embeds is not None:
-                    face_cond_embeds = torch.mean(face_cond_embeds / torch.norm(face_cond_embeds, dim=0, keepdim=True), dim=0).unsqueeze(0)
-                if img_comp_cond_embeds is not None:
-                    img_comp_cond_embeds = torch.mean(img_comp_cond_embeds / torch.norm(img_comp_cond_embeds, dim=0, keepdim=True), dim=0).unsqueeze(0)
-            img_uncond_embeds = img_uncond_embeds[0].unsqueeze(0) # TODO: better strategy for uncond could be to average them
-
-        if attn_mask is not None:
-            attn_mask = attn_mask.to(self.device, dtype=self.dtype)
-        
-        self.ipadapter = IPAdapter(
-            ipadapter,
-            cross_attention_dim=cross_attention_dim,
-            output_cross_attention_dim=output_cross_attention_dim,
-            clip_embeddings_dim=img_uncond_embeds.shape[-1],
-            clip_extra_context_tokens=clip_extra_context_tokens,
-            is_sdxl=self.is_sdxl,
-            is_plus=self.is_plus,
-            is_full=self.is_full,
-            is_faceid=self.is_faceid,
-            is_instant_id=self.is_instant_id,
-            is_portrait_unnorm=self.is_portrait_unnorm,
-        )
-
-        self.ipadapter.to(self.device, dtype=self.dtype)
-
-        if self.is_faceid and self.is_plus:
-            image_prompt_embeds = self.ipadapter.get_image_embeds_faceid_plus(face_cond_embeds.to(self.device, dtype=self.dtype), img_uncond_embeds.to(self.device, dtype=self.dtype), weight_faceidv2, weight_faceidv2)
-            uncond_image_prompt_embeds = self.ipadapter.get_image_embeds_faceid_plus(torch.zeros_like(face_cond_embeds).to(self.device, dtype=self.dtype), torch.zeros_like(img_uncond_embeds).to(self.device, dtype=self.dtype), weight_faceidv2, weight_faceidv2)
-        else:
-            image_prompt_embeds, uncond_image_prompt_embeds = self.ipadapter.get_image_embeds(img_uncond_embeds.to(self.device, dtype=self.dtype), torch.zeros_like(img_uncond_embeds).to(self.device, dtype=self.dtype))
-            if img_comp_cond_embeds is not None:
-                cond_comp = self.ipadapter.get_image_embeds(img_comp_cond_embeds.to(self.device, dtype=self.dtype), img_uncond_embeds.to(self.device, dtype=self.dtype))[0]
-
-        image_prompt_embeds = image_prompt_embeds.to(self.device, dtype=self.dtype)
-        uncond_image_prompt_embeds = uncond_image_prompt_embeds.to(self.device, dtype=self.dtype)
-        cond_alt=None   
-        if img_comp_cond_embeds is not None:
-            cond_alt = { 3: cond_comp.to(self.device, dtype=self.dtype) }
-
-        work_model = model.clone()
-
-
-        if self.is_instant_id:
-            def modifier(cnet, x_noisy, t, cond, batched_number):
-                cond_mark = cond['transformer_options']['cond_mark'][:, None, None].to(cond['c_crossattn'])  # cond is 0
-                c_crossattn = image_prompt_embeds * (1.0 - cond_mark) + uncond_image_prompt_embeds * cond_mark
-                cond['c_crossattn'] = c_crossattn
-                return x_noisy, t, cond, batched_number
-
-            work_model.add_controlnet_conditioning_modifier(modifier)
-
-        if attn_mask is not None:
-            attn_mask = attn_mask.to(self.device)
-
-        sigma_start = model.model.model_sampling.percent_to_sigma(start_at)
-        sigma_end = model.model.model_sampling.percent_to_sigma(end_at)
-
-        patch_kwargs = {
-            "ipadapter": self.ipadapter,
-            "number": 0,
-            "weight": self.weight,
-            "cond": image_prompt_embeds,
-            "cond_alt": cond_alt,
-            "uncond": uncond_image_prompt_embeds,
-            "weight_type": self.weight_type,
-            "mask": attn_mask,
-            "sigma_start": sigma_start,
-            "sigma_end": sigma_end,
-            "unfold_batch": self.unfold_batch,
-            "embeds_scaling": self.embeds_scaling,
-        }
-
-        if not self.is_sdxl:
-            for id in [1,2,4,5,7,8]: # id of input_blocks that have cross attention
-                set_model_patch_replace(work_model, patch_kwargs, ("input", id))
-                patch_kwargs["number"] += 1
-            for id in [3,4,5,6,7,8,9,10,11]: # id of output_blocks that have cross attention
-                set_model_patch_replace(work_model, patch_kwargs, ("output", id))
-                patch_kwargs["number"] += 1
-            set_model_patch_replace(work_model, patch_kwargs, ("middle", 0))
-        else:
-            for id in [4,5,7,8]: # id of input_blocks that have cross attention
-                block_indices = range(2) if id in [4, 5] else range(10) # transformer_depth
-                for index in block_indices:
-                    set_model_patch_replace(work_model, patch_kwargs, ("input", id, index))
-                    patch_kwargs["number"] += 1
-            for id in range(6): # id of output_blocks that have cross attention
-                block_indices = range(2) if id in [3, 4, 5] else range(10) # transformer_depth
-                for index in block_indices:
-                    set_model_patch_replace(work_model, patch_kwargs, ("output", id, index))
-                    patch_kwargs["number"] += 1
-            for index in range(10):
-                set_model_patch_replace(work_model, patch_kwargs, ("middle", 0, index))
-                patch_kwargs["number"] += 1
-
-        return (work_model, )
-
-
-
 class IPAdapterApply:
     @classmethod
     def INPUT_TYPES(s):
@@ -1009,7 +654,7 @@ class IPAdapterApply:
                             face_embed.append(torch.from_numpy(face[0].embedding).unsqueeze(0))
 
                             if 640 not in size:
-                                logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
+                                print(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
                             break
                     else:
                         raise Exception('InsightFace: No face detected.')
@@ -1031,7 +676,7 @@ class IPAdapterApply:
                             face_clipvision.append(NPToTensor(insightface_face_align.norm_crop(face_img[i], landmark=face[0].kps, image_size=224)))
 
                             if 640 not in size:
-                                logging.log(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
+                                print(f"\033[33mINFO: InsightFace detection resolution lowered to {size}.\033[0m")
                             break
                     else:
                         raise Exception('InsightFace: No face detected.')
@@ -1055,7 +700,7 @@ class IPAdapterApply:
                     clip_embed_zeroed = torch.zeros_like(clip_embed)
             else:
                 if image.shape[1] != image.shape[2]:
-                    logging.log("\033[33mINFO: the IPAdapter reference image is not a square, CLIPImageProcessor will resize and crop it at the center. If the main focus of the picture is not in the middle the result might not be what you are expecting.\033[0m")
+                    print("\033[33mINFO: the IPAdapter reference image is not a square, CLIPImageProcessor will resize and crop it at the center. If the main focus of the picture is not in the middle the result might not be what you are expecting.\033[0m")
 
                 clip_embed = clip_vision.encode_image(image)
                 neg_image = image_add_noise(image, noise) if noise > 0 else None
@@ -1177,30 +822,6 @@ class IPAdapterApplyFaceID(IPAdapterApply):
             },
             "optional": {
                 "attn_mask": ("MASK",),
-            }
-        }
-
-class IPAdapterApplyStyleComposition(IPAdapterApplyAdvanced):
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "ipadapter": ("IPADAPTER", ),
-                "image_style": ("IMAGE",),
-                "image_composition": ("IMAGE",),
-                "model": ("MODEL", ),
-                "weight_style": ("FLOAT", { "default": 1.0, "min": -1, "max": 5, "step": 0.05 }),
-                "weight_composition": ("FLOAT", { "default": 1.0, "min": -1, "max": 5, "step": 0.05 }),
-                "expand_style": ("BOOLEAN", { "default": False }),
-                "combine_embeds": (["concat", "add", "subtract", "average", "norm average"], {"default": "average"}),
-                "start_at": ("FLOAT", { "default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001 }),
-                "end_at": ("FLOAT", { "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001 }),
-                "embeds_scaling": (['V only', 'K+V', 'K+V w/ C penalty', 'K+mean(V) w/ C penalty'], ),
-            },
-            "optional": {
-                "image_negative": ("IMAGE",),
-                "attn_mask": ("MASK",),
-                "clip_vision": ("CLIP_VISION",),
             }
         }
 
@@ -1455,9 +1076,7 @@ class IPAdapterBatchEmbeds:
 NODE_CLASS_MAPPINGS = {
     "IPAdapterModelLoader": IPAdapterModelLoader,
     "IPAdapterApply": IPAdapterApply,
-    "IPAdapterApplyAdvanced": IPAdapterApplyAdvanced,
     "IPAdapterApplyFaceID": IPAdapterApplyFaceID,
-    "IPAdapterApplyStyleComposition": IPAdapterApplyStyleComposition,
     "IPAdapterApplyEncoded": IPAdapterApplyEncoded,
     "PrepImageForClipVision": PrepImageForClipVision,
     "IPAdapterEncoder": IPAdapterEncoder,
@@ -1471,9 +1090,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "IPAdapterModelLoader": "Load IPAdapter Model",
     "IPAdapterApply": "Apply IPAdapter",
-    "IPAdapterApplyAdvanced": "Apply IPAdapter Advanced",
     "IPAdapterApplyFaceID": "Apply IPAdapter FaceID",
-    "IPAdapterApplyStyleComposition": "Apply IPAdapter Style Composition",
     "IPAdapterApplyEncoded": "Apply IPAdapter from Encoded",
     "PrepImageForClipVision": "Prepare Image For Clip Vision",
     "IPAdapterEncoder": "Encode IPAdapter Image",

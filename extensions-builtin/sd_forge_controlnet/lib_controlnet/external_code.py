@@ -219,22 +219,6 @@ class ControlNetUnit:
     pixel_perfect: bool = False
     # Control mode for the unit; defaults to balanced.
     control_mode: Union[ControlMode, int, str] = ControlMode.BALANCED
-    # Style image
-    style_image: Optional[GradioImageMaskPair] = None
-    # Composition image
-    composition_image: Optional[GradioImageMaskPair] = None
-    # negative image
-    negative_image: Optional[GradioImageMaskPair] = None
-    # Style weight
-    weight_style: float = 1.0
-    # Composition weight
-    weight_composition: float = 1.0
-    # how to combine embeddings
-    combine_embeds: str = "average"
-    # scaling factor for embeddings
-    embeds_scaling: str = "V only"
-    layer_weights: str = ""
-    weight_type: str = "linear"
 
     # Following fields should only be used in the API.
     # ====== Start of API only fields ======
@@ -262,13 +246,6 @@ class ControlNetUnit:
             "pixel_perfect",
             "control_mode",
             "hr_option",
-            "style_image",
-            "composition_image",
-            "negative_image",
-            "weight_style",
-            "weight_composition",
-            "combine_embeds",
-            "embeds_scaling",
         )
 
     @staticmethod
@@ -298,21 +275,6 @@ class ControlNetUnit:
                     "image": mask,
                     "mask": np.zeros_like(mask),
                 }
-        if isinstance(unit.style_image, str):
-            img = np.array(api.decode_base64_to_image(unit.style_image)).astype('uint8')
-            unit.style_image = {
-                "image": img,
-            }
-        if isinstance(unit.composition_image, str):
-            img = np.array(api.decode_base64_to_image(unit.composition_image)).astype('uint8')
-            unit.composition_image = {
-                "image": img,
-            }
-        if isinstance(unit.negative_image, str):
-            img = np.array(api.decode_base64_to_image(unit.negative_image)).astype('uint8')
-            unit.negative_image = {
-                "image": img,
-            }
         return unit
 
 
